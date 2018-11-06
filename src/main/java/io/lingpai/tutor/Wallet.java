@@ -13,8 +13,20 @@ public class Wallet {
     public PublicKey publicKey;
 
 
+    //生成一个全新的钱包， 也就是生成公私钥对
     public Wallet() {
         generateKeyPair();
+    }
+
+
+    //构造一个只读的钱包，用来查询钱包的信息，比如余额
+    public Wallet(PublicKey publicKey) {
+        this.publicKey = publicKey;
+    }
+
+    //从私钥恢复钱包，公钥可以从私钥构造出来
+    public Wallet(PrivateKey privateKey) {
+        this.privateKey = privateKey;
     }
 
 
@@ -77,6 +89,6 @@ public class Wallet {
     }
 
     private boolean isMine(TransactionOutput output) {
-        return output.recipient == publicKey;
+        return output.recipient.equals(publicKey);
     }
 }

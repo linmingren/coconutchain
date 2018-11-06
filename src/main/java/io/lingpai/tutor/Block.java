@@ -51,9 +51,9 @@ public class Block {
 
         merkleRoot = Utils.getMerkleRoot(transactions);
         hash = calHash();
-        String target = new String(new char[difficulty]).replace('\0', '0'); //Create a string with difficulty * "0"
-        while (!hash.substring(0, difficulty).equals(target)) {
-            ////计算hash的这几个值里，只有nonce是变化的，其它的值在区块构建时已经固定下来了, 所以递增nonce就能让每次的hash不一样
+        String target = new String(new char[difficulty]).replace('\0', '0');
+        while (!hash.startsWith(target)) {
+            //计算hash的这几个值里，只有nonce是变化的，其它的值在区块构建时已经固定下来了, 所以递增nonce就能让每次的hash不一样
             nonce++;
             hash = calHash();
         }
@@ -89,5 +89,10 @@ public class Block {
     public ArrayList<Transaction> getTransactions() {
         return transactions;
     }
+
+    public long getHeight() {
+        return height;
+    }
+
 
 }

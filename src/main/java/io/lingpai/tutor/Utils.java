@@ -7,9 +7,14 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import org.bouncycastle.asn1.pkcs.RSAPublicKey;
 
 import java.io.IOException;
 import java.security.*;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.RSAPublicKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
 
@@ -81,6 +86,17 @@ public class Utils {
     //把公私钥转成base64编码的字符串
     public static String getStringFromKey(Key key) {
         return Base64.getEncoder().encodeToString(key.getEncoded());
+    }
+
+    public static PublicKey getPublicKeyFromString(String key) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        KeyFactory keyFactory = KeyFactory.getInstance("ECDSA");
+
+        X509EncodedKeySpec priPKCS8 = new X509EncodedKeySpec(
+
+                Base64.getDecoder().decode(key));
+
+        PublicKey publicKey = keyFactory.generatePublic(priPKCS8);
+        return publicKey;
     }
 
     //关于默克尔树的很详细的描述： https://blog.csdn.net/wo541075754/article/details/54632929

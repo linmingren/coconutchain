@@ -4,7 +4,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 import java.security.Security;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -57,6 +60,11 @@ public class CoconutChain {
             //块本身的数据不合法
             if(!currentBlock.isValid() ){
                 log.error("block: {} is invalid", i);
+                return false;
+            }
+
+            if (currentBlock.getHeight() != previousBlock.getHeight() + 1) {
+                log.error("block({}) height is invalid", i);
                 return false;
             }
 
@@ -176,6 +184,17 @@ public class CoconutChain {
         blockchain.add(block);
     }
 
+    private void replaceNewChain(CoconutChain newChain) {
+        if (newChain.getLength() > blockchain.size()) {
+            //其它节点的链的长度比当前节点的长，
+            if (newChain.isValid()) {
+                blockchain = newChain.blockchain;
+            } else {
+                log.error("A longer chain found, but it is invalid, discard it");
+            }
+        }
+    }
+
     public void increaseDifficulty() {
         this.difficulty ++;
     }
@@ -188,6 +207,36 @@ public class CoconutChain {
         this.miningWallet = wallet;
     }
 
+    private int getLength() {
+        return blockchain.size();
+    }
+
+    //height从0开始
+    public Block getBlockByHeight(int height) {
+        if (blockchain.size() >= height + 1) {
+            return blockchain.get(height);
+        }
+
+        return null;
+    }
+
+    public Transaction getTransactionByHash(String hash) {
+        for (Block b : blockchain) {
+            for (Transaction t : b.getTransactions()) {
+                if (t.getTransactionId().equals(hash)) {
+                    return t;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public float getBalanceOf(String key) throws InvalidKeySpecException, NoSuchAlgorithmException {
+        PublicKey publicKey = Utils.getPublicKeyFromString(key);
+        Wallet wallet = new Wallet(publicKey);
+        return wallet.getBalance();
+    }
 
     public static void main(String[] args) throws JsonProcessingException {
         log.info("Coconut chain starting...");
@@ -250,6 +299,9 @@ public class CoconutChain {
 
 
         log.info("chain details: " + Utils.toJson(cocoChain));
+
+        HttpServer server = new HttpServer();
+        server.serve(cocoChain);
     }
 
 }
