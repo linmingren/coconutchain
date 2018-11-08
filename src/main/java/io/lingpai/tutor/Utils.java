@@ -51,7 +51,11 @@ public class Utils {
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
         return mapper.writeValueAsString(o);
+    }
 
+    public static <T extends Object> T fromJson(String source, Class<T> valueType) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.readValue(source, valueType);
     }
 
     //用椭圆算法对input进行签名

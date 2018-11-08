@@ -3,6 +3,7 @@ package io.lingpai.tutor;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
@@ -13,6 +14,7 @@ import java.util.ArrayList;
 @Data
 @Accessors(chain = true)
 @Slf4j
+@NoArgsConstructor
 public class Block {
     private long height; //区块的高度，创世块是0
     private String hash;
@@ -86,13 +88,8 @@ public class Block {
         return true;
     }
 
-    public ArrayList<Transaction> getTransactions() {
-        return transactions;
-    }
 
-    public long getHeight() {
-        return height;
-    }
+
 
 
 }

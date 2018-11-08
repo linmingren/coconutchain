@@ -2,8 +2,14 @@ package io.lingpai.tutor;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.lingpai.tutor.p2p.BlockMessage;
+import io.lingpai.tutor.p2p.GetBlocksResponse;
+import io.lingpai.tutor.p2p.INode;
+import io.lingpai.tutor.p2p.MessageListener;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Security;
@@ -14,7 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 
 @Slf4j
-public class CoconutChain {
+public class CoconutChain implements MessageListener {
     //保存所有区块
     public ArrayList<Block> blockchain = new ArrayList<>();
 
@@ -37,6 +43,13 @@ public class CoconutChain {
     @JsonIgnore
     Wallet miningWallet; //正在挖矿的钱包，用来纪录挖矿所得
 
+    INode node; //p2p节点
+
+    public CoconutChain(INode node) throws SocketException, UnknownHostException, InterruptedException {
+        node.addMessageListener(this);
+        node.start();
+        this.node = node;
+    }
 
     private  Boolean isValid() {
         Block currentBlock;
@@ -141,7 +154,7 @@ public class CoconutChain {
     }
 
     //把交易打包到区块中，并且加到链上
-    public void mineBlock(List<Transaction> transactions) throws JsonProcessingException {
+    public void mineBlock(List<Transaction> transactions) throws JsonProcessingException, InterruptedException {
         int height = blockchain.size();
         //先构造区块，然后再挖矿，比特币的流程也是这样
         String previouesHash = "0"; //创世块没有前一个块的哈希，用0代替
@@ -182,17 +195,8 @@ public class CoconutChain {
         log.info("block: {} has been mined at height: {}, json: {}", block.getHash(), block.getHeight(), Utils.toJson(block));
         //必须先挖矿成功，才能添加到区块中
         blockchain.add(block);
-    }
-
-    private void replaceNewChain(CoconutChain newChain) {
-        if (newChain.getLength() > blockchain.size()) {
-            //其它节点的链的长度比当前节点的长，
-            if (newChain.isValid()) {
-                blockchain = newChain.blockchain;
-            } else {
-                log.error("A longer chain found, but it is invalid, discard it");
-            }
-        }
+        //把新块广播到网上
+        node.sendMessage(new BlockMessage(block));
     }
 
     public void increaseDifficulty() {
@@ -238,11 +242,67 @@ public class CoconutChain {
         return wallet.getBalance();
     }
 
-    public static void main(String[] args) throws JsonProcessingException {
+    //////处理p2p网络消息
+
+    @Override
+    public void newBlock(Block block) {
+        try {
+            log.info("received new block: {}", Utils.toJson(block));
+            Block lastLocalBlock = blockchain.get(blockchain.size() - 1);
+            if (block.getHeight() == lastLocalBlock.getHeight() + 1) {
+                //其它节点发现的块比当前节点高
+                //TODO：需要检查区块的有效性
+                blockchain.add(block);
+            }
+
+            if (block.getHeight() == lastLocalBlock.getHeight()) {
+                //其它节点发现的区块和我们的最后一个区块一样高度，保留哈希值大的区块
+                if (block.getHash().compareTo(lastLocalBlock.getHash()) > 0) {
+                    blockchain.remove(lastLocalBlock);
+                    blockchain.add(block);
+                }
+            }
+        } catch (JsonProcessingException e) {
+            log.error("",e);
+        }
+    }
+
+    @Override
+    public void newTransaction(Transaction transaction) {
+        //TODO: 后续处理
+    }
+
+    @Override
+    public void syncBlocks(List<Block> blockList) {
+        try {
+            log.info("received history blocks: {}", Utils.toJson(blockList));
+            blockchain.addAll(blockList);
+        } catch (JsonProcessingException e) {
+            log.error("",e);
+        }
+    }
+
+    @Override
+    public void getBlocks(String startHash) throws InterruptedException {
+        //收到其它节点查询区块的请求
+        int startIndex = -1;
+        for (int i = 0 ; i < blockchain.size(); ++i) {
+            if (blockchain.get(i).getHash().equals(startHash)) {
+                startIndex = i;
+            }
+        }
+
+        //把startHash之后的区块都广播出去
+        node.sendMessage(new GetBlocksResponse(blockchain.subList(startIndex, blockchain.size())));
+    }
+
+    public static void main(String[] args) throws JsonProcessingException, InterruptedException, SocketException, UnknownHostException {
         log.info("Coconut chain starting...");
         log.info("coinbase: {}", Utils.getStringFromKey(coinbase.publicKey));
 
-        CoconutChain cocoChain = new CoconutChain();
+        Node node = new Node("239.254.42.96", 1111);
+
+        CoconutChain cocoChain = new CoconutChain(node);
 
         //模拟两个钱包
         Wallet walletA = new Wallet();

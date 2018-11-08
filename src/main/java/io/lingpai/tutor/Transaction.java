@@ -1,6 +1,7 @@
 package io.lingpai.tutor;
 
 
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.security.PrivateKey;
@@ -8,6 +9,7 @@ import java.security.PublicKey;
 import java.util.ArrayList;
 
 @Slf4j
+@NoArgsConstructor
 public class Transaction {
 
     public String transactionId; // 交易的id, 也就是交易的哈希

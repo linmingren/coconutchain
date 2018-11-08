@@ -21,4 +21,5 @@ java -jar target/coconut-chain-1.0-SNAPSHOT-jar-with-dependencies.jar
 * [FasterXML Jackson](https://github.com/FasterXML/jackson) 用来进行POJO和JSON之间的转换
 * [lombok](https://projectlombok.org/) 在POJO类加上注解，从而免去手写getter/setter等常见函数
 * [Slf4j](http://www.slf4j.org/) 记录日志
+* [Netty](https://www.netty.io/) p2p通信
 
