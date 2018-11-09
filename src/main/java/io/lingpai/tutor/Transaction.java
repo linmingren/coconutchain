@@ -1,6 +1,8 @@
 package io.lingpai.tutor;
 
 
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -92,6 +94,7 @@ public class Transaction {
     }
 
     //returns sum of inputs(UTXOs) values
+
     public float getInputsValue() {
         float total = 0;
         for(TransactionInput i : inputs) {
@@ -101,6 +104,7 @@ public class Transaction {
     }
 
     //returns sum of outputs:
+    @JsonDeserialize()
     public float getOutputsValue() {
         float total = 0;
         for(TransactionOutput o : outputs) {

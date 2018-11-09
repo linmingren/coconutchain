@@ -1,8 +1,13 @@
 package io.lingpai.tutor;
 
 
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.security.PublicKey;
 
+@Data
+@NoArgsConstructor
 public class TransactionOutput {
 
     public String id;

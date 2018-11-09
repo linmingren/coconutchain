@@ -28,7 +28,7 @@ public class Node implements INode {
 
     public Node(String multicastHost, int port) throws SocketException, UnknownHostException, InterruptedException {
         sender = new Sender(new InetSocketAddress(multicastHost,
-                        port));
+                port));
         this.multicastHost = multicastHost;
         this.port = port;
     }
@@ -88,7 +88,7 @@ public class Node implements INode {
                     .buffer(1 + message.getBody().length);
             //消息的第一个字节是消息类型
             buf.writeByte(message.getType());
-            //类型后面的就是实际数据
+            //类型后面的就是实际数据, 对数据压缩后再传输，否则因为数据包长度的限制，一个包含2个交易的区块都无法发送
             buf.writeBytes(message.getBody());
             out.add(new DatagramPacket(buf, remoteAddress));
         }
@@ -103,9 +103,13 @@ public class Node implements INode {
                 throws Exception {
             ByteBuf data = datagramPacket.content();
 
+            //为什么最大只收到2048字节：https://blog.csdn.net/KokJuis/article/details/72864018
+            log.debug("available bytes: {}", data.readableBytes());
             Byte type = data.readByte();
-            IMessage message = MessageFactory.from(type, data.slice(1,
-                    data.readableBytes()).toString(CharsetUtil.UTF_8));
+
+            String bodyString = data.slice(1, data.readableBytes()).toString(CharsetUtil.UTF_8);
+
+            IMessage message = MessageFactory.from(type, bodyString);
             out.add(message);
         }
     }
@@ -114,6 +118,7 @@ public class Node implements INode {
             extends SimpleChannelInboundHandler<IMessage> {
 
         private MessageListener listener;
+
         public BlockMessageHandler(MessageListener listener) {
             super();
             this.listener = listener;
@@ -134,8 +139,9 @@ public class Node implements INode {
 
             switch (event.getType()) {
                 case IMessage.GET_BLOCKS:
-                    listener.syncBlocks(((GetBlocksResponse)event).getBlockList());
-                    case IMessage.NEW_BLOCK:
+                    listener.syncBlocks(((GetBlocksResponse) event).getBlockList());
+                case IMessage.NEW_BLOCK:
+                    listener.newBlock(((BlockMessage) event).getBlock());
             }
         }
     }
@@ -158,6 +164,7 @@ public class Node implements INode {
 
         //发送消息，消息通过decoder格式成byte
         public void sendMessage(IMessage message) throws InterruptedException {
+            //如果消息太大，在OSX上是2048个字节，则会分成多个数据包发送
             ch.writeAndFlush(message);
         }
 
@@ -189,6 +196,8 @@ public class Node implements INode {
                     })
                     .option(ChannelOption.SO_BROADCAST, true) //不设置这个参数，也能收到多播消息，设置这个参数的意思是会把收到的消息继续广播
                     .option(ChannelOption.SO_REUSEADDR, true) //设置后，就可以在一台机器开启多个节点，而不需要换端口
+                    //设置一个数据包最大能接收多长的数据，默认是2048，假设发送的报文长度超过此限制，则接收方收到的报文就会被截断，从而无法解析
+                    .option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(8096))
                     .handler(new ChannelInitializer<Channel>() {
                         @Override
                         protected void initChannel(Channel channel) {

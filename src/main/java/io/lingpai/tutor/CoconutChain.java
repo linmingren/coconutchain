@@ -129,19 +129,19 @@ public class CoconutChain implements MessageListener {
 
                 //验证转出地址
                 if (currentTransaction.sender.equals(coinbase.publicKey)) {
-                    if( ! Utils.isSameKey(currentTransaction.getOutputs().get(0).recipient, currentTransaction.recipient)) {
+                    if( ! currentTransaction.getOutputs().get(0).recipient.equals(currentTransaction.recipient)) {
                         log.error("#Transaction(" + t + ") output recipient is not who it should be");
                         return false;
                     }
                 } else {
                     //非挖矿交易，，第一个output是原地址 第二个output是转出地址
-                    if( ! Utils.isSameKey(currentTransaction.getOutputs().get(0).recipient, currentTransaction.sender)) {
+                    if( ! currentTransaction.getOutputs().get(0).recipient.equals(currentTransaction.sender)) {
                         log.error("#Transaction(" + t + ") output 'change' is not sender");
                         return false;
                     }
 
 
-                    if( ! Utils.isSameKey(currentTransaction.getOutputs().get(1).recipient, currentTransaction.recipient)) {
+                    if( ! currentTransaction.getOutputs().get(1).recipient.equals(currentTransaction.recipient)) {
                         log.error("#Transaction(" + t + ") output recipient is not who it should be");
                         return false;
                     }

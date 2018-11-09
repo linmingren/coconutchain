@@ -1,5 +1,10 @@
 package io.lingpai.tutor;
 
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
 public class TransactionInput {
     private String transactionOutputId; //某个TransactionOutput的ID
     private TransactionOutput UTXO; //如果outputId对应的output已经被花费，则这个字段是null

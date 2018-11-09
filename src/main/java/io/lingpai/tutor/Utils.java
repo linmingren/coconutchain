@@ -1,14 +1,17 @@
 package io.lingpai.tutor;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import org.bouncycastle.asn1.pkcs.RSAPublicKey;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
@@ -17,6 +20,8 @@ import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 public class Utils {
 
@@ -43,7 +48,7 @@ public class Utils {
 
         //PublicKey和PrivateKey两种类型默认无法打印成json，需要自定义处理
         SimpleModule module = new SimpleModule();
-        module.addSerializer(Key.class, new ItemSerializer());
+        module.addSerializer(Key.class, new KeySerializer());
         mapper.registerModule(module);
 
 
@@ -55,6 +60,14 @@ public class Utils {
 
     public static <T extends Object> T fromJson(String source, Class<T> valueType) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
+
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+        //json中的字符串无法自动转成PublicKey, 需要自定义处理
+        SimpleModule module = new SimpleModule();
+        module.addDeserializer(PublicKey.class, new KeyDeserializer(PublicKey.class));
+        mapper.registerModule(module);
+
         return mapper.readValue(source, valueType);
     }
 
@@ -95,9 +108,7 @@ public class Utils {
     public static PublicKey getPublicKeyFromString(String key) throws NoSuchAlgorithmException, InvalidKeySpecException {
         KeyFactory keyFactory = KeyFactory.getInstance("ECDSA");
 
-        X509EncodedKeySpec priPKCS8 = new X509EncodedKeySpec(
-
-                Base64.getDecoder().decode(key));
+        X509EncodedKeySpec priPKCS8 = new X509EncodedKeySpec(Base64.getDecoder().decode(key));
 
         PublicKey publicKey = keyFactory.generatePublic(priPKCS8);
         return publicKey;
@@ -124,13 +135,13 @@ public class Utils {
     }
 
 
-    public static class ItemSerializer extends StdSerializer<Key> {
+    public static class KeySerializer extends StdSerializer<Key> {
 
-        public ItemSerializer() {
+        public KeySerializer() {
             this(null);
         }
 
-        public ItemSerializer(Class<Key> t) {
+        public KeySerializer(Class<Key> t) {
             super(t);
         }
 
@@ -143,7 +154,24 @@ public class Utils {
         }
     }
 
-    public static boolean isSameKey(PublicKey k1, PublicKey k2) {
-        return getStringFromKey(k1).equals(getStringFromKey(k2));
+    public static class KeyDeserializer extends StdDeserializer<PublicKey> {
+        public KeyDeserializer(Class<PublicKey> vc) {
+            super(vc);
+        }
+
+        @Override
+        public PublicKey deserialize(JsonParser jp, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+            try {
+                return Utils.getPublicKeyFromString(jp.getText());
+                //return null;
+            } catch (NoSuchAlgorithmException e) {
+                e.printStackTrace();
+            } catch (InvalidKeySpecException e) {
+                e.printStackTrace();
+            }
+
+            return null;
+        }
     }
+
 }
